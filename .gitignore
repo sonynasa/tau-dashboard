@@ -1,3 +1,6 @@
 server.py
+sync_and_publish.bat
+start_all.bat
 *.log
 __pycache__/
+.git/
