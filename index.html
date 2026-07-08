@@ -72,7 +72,7 @@
             text-align: center;
             color: #2c6e6e;
             margin-bottom: 32px;
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             font-weight: 400;// 小标题字号
         }
         .date-panel {
@@ -532,7 +532,7 @@ function renderChart1(filtered) {
         refreshAll();
     });
     btnMonth.addEventListener('click', () => {
-    // 创建遮罩
+    // 创建半透明遮罩
     const overlay = document.createElement('div');
     overlay.style.position = 'fixed';
     overlay.style.left = '0';
@@ -544,6 +544,7 @@ function renderChart1(filtered) {
     overlay.style.zIndex = '9998';
     document.body.appendChild(overlay);
 
+    // 创建可见的月份输入框
     const monthInput = document.createElement('input');
     monthInput.type = 'month';
     monthInput.style.position = 'fixed';
@@ -558,9 +559,10 @@ function renderChart1(filtered) {
     monthInput.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
     monthInput.style.zIndex = '9999';
     monthInput.style.color = '#1a3c3c';
-    monthInput.value = "2026-07"; // 占位符会被后端替换
+    monthInput.value = "2026-07"; // 该占位符会被 Python 替换为当前年月
     document.body.appendChild(monthInput);
 
+    // 聚焦并尝试弹出选择器
     monthInput.focus();
     if (monthInput.showPicker) {
         monthInput.showPicker();
@@ -568,6 +570,7 @@ function renderChart1(filtered) {
         monthInput.click();
     }
 
+    // 选择月份后更新
     monthInput.addEventListener('change', (e) => {
         const val = e.target.value;
         if (val) {
@@ -577,7 +580,6 @@ function renderChart1(filtered) {
             const lastDay = `${year}-${month}-${lastDate < 10 ? '0'+lastDate : lastDate}`;
             let startStr = firstDay, endStr = lastDay;
             if (startStr < minDateStr) startStr = minDateStr;
-            // 结束日期不限制超出数据范围（以便查看未来月份的目标）
             startInput.value = startStr;
             endInput.value = endStr;
             refreshAll();
@@ -586,6 +588,7 @@ function renderChart1(filtered) {
         document.body.removeChild(overlay);
     });
 
+    // 点击遮罩或失焦时关闭
     monthInput.addEventListener('blur', () => {
         if (document.body.contains(monthInput)) {
             document.body.removeChild(monthInput);
@@ -598,68 +601,28 @@ function renderChart1(filtered) {
     
     // 按天按钮：弹出原生日期选择器，选择任意日期后自动刷新（解决了最新日期不触发的问题）
     btnDay.addEventListener('click', () => {
-    // 创建可见的日期选择器（浮层）
-    const overlay = document.createElement('div');
-    overlay.style.position = 'fixed';
-    overlay.style.left = '0';
-    overlay.style.top = '0';
-    overlay.style.width = '100%';
-    overlay.style.height = '100%';
-    overlay.style.background = 'rgba(0,0,0,0.3)';
-    overlay.style.backdropFilter = 'blur(4px)';
-    overlay.style.zIndex = '9998';
-    document.body.appendChild(overlay);
-
-    const tempInput = document.createElement('input');
-    tempInput.type = 'date';
-    tempInput.style.position = 'fixed';
-    tempInput.style.left = '10%';
-    tempInput.style.top = '35%';
-    tempInput.style.width = '80%';
-    tempInput.style.padding = '18px';
-    tempInput.style.fontSize = '18px';
-    tempInput.style.border = '2px solid #2c8c8c';
-    tempInput.style.borderRadius = '16px';
-    tempInput.style.background = '#ffffff';
-    tempInput.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
-    tempInput.style.zIndex = '9999';
-    tempInput.style.color = '#1a3c3c';
-    tempInput.value = defaultDayStr;
-    document.body.appendChild(tempInput);
-
-    // 自动弹出（移动端兼容）
-    tempInput.focus();
-    if (tempInput.showPicker) {
-        tempInput.showPicker();
+    // 设置默认日期
+    let defaultDate = defaultDayStr;
+    if (defaultDate < minDateStr) defaultDate = minDateStr;
+    if (defaultDate > maxDateStr) defaultDate = maxDateStr;
+    endInput.value = defaultDate;
+    // 触发结束日期输入框的选择器（该输入框在移动端本来就能正常工作）
+    if (endInput.showPicker) {
+        endInput.showPicker();
     } else {
-        tempInput.click();
+        endInput.click();
     }
-
-    // 选择日期后更新
-    tempInput.addEventListener('change', (e) => {
-        const val = e.target.value;
-        if (val) {
-            let startStr = val, endStr = val;
-            if (startStr < minDateStr) startStr = minDateStr;
-            if (endStr > maxDateStr) endStr = maxDateStr;
-            startInput.value = startStr;
-            endInput.value = endStr;
+    // 监听结束日期变化，同步起始日期并刷新
+    const onEndChange = () => {
+        let selected = endInput.value;
+        if (selected) {
+            startInput.value = selected;
             refreshAll();
         }
-        // 移除浮层和输入框
-        document.body.removeChild(tempInput);
-        document.body.removeChild(overlay);
-    });
-
-    // 点击空白区域关闭（失焦时关闭）
-    tempInput.addEventListener('blur', () => {
-        if (document.body.contains(tempInput)) {
-            document.body.removeChild(tempInput);
-        }
-        if (document.body.contains(overlay)) {
-            document.body.removeChild(overlay);
-        }
-    });
+        // 移除监听，避免重复
+        endInput.removeEventListener('change', onEndChange);
+    };
+    endInput.addEventListener('change', onEndChange);
 });
     
     // 初始化
