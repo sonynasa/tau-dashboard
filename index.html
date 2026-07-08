@@ -72,8 +72,8 @@
             text-align: center;
             color: #2c6e6e;
             margin-bottom: 32px;
-            font-size: 0.9rem;
-            font-weight: 400;
+            font-size: 1.3rem;
+            font-weight: 400;// 小标题字号
         }
         .date-panel {
             display: flex;
@@ -383,7 +383,7 @@ function renderChart1(filtered) {
             xaxis: { title: '日期', tickangle: -30 },
             shapes: [{
                 type: 'line', x0: dates[0], x1: dates[dates.length-1], y0: 2, y1: 2,
-                line: { color: 'red', dash: 'dash', width: 1.5 }, name: '盈亏平衡线'
+                line: { color: 'red', dash: 'dash', width: 1.6 }, name: '盈亏平衡线'
             }]
         };
         layout = applyCommonLayout(layout);
@@ -532,71 +532,135 @@ function renderChart1(filtered) {
         refreshAll();
     });
     btnMonth.addEventListener('click', () => {
-        const monthPicker = document.createElement('input');
-        monthPicker.type = 'month';
-        monthPicker.value = "2026-07";
-        monthPicker.style.position = 'absolute'; monthPicker.style.top = '-100px';
-        document.body.appendChild(monthPicker);
-        monthPicker.showPicker ? monthPicker.showPicker() : monthPicker.click();
-        monthPicker.addEventListener('change', (e) => {
-            const yearMonth = e.target.value;
-            if (!yearMonth) return;
-            const [year, month] = yearMonth.split('-');
+    // 创建遮罩
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.left = '0';
+    overlay.style.top = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.background = 'rgba(0,0,0,0.3)';
+    overlay.style.backdropFilter = 'blur(4px)';
+    overlay.style.zIndex = '9998';
+    document.body.appendChild(overlay);
+
+    const monthInput = document.createElement('input');
+    monthInput.type = 'month';
+    monthInput.style.position = 'fixed';
+    monthInput.style.left = '10%';
+    monthInput.style.top = '35%';
+    monthInput.style.width = '80%';
+    monthInput.style.padding = '18px';
+    monthInput.style.fontSize = '18px';
+    monthInput.style.border = '2px solid #2c8c8c';
+    monthInput.style.borderRadius = '16px';
+    monthInput.style.background = '#ffffff';
+    monthInput.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
+    monthInput.style.zIndex = '9999';
+    monthInput.style.color = '#1a3c3c';
+    monthInput.value = "2026-07"; // 占位符会被后端替换
+    document.body.appendChild(monthInput);
+
+    monthInput.focus();
+    if (monthInput.showPicker) {
+        monthInput.showPicker();
+    } else {
+        monthInput.click();
+    }
+
+    monthInput.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val) {
+            const [year, month] = val.split('-');
             const firstDay = `${year}-${month}-01`;
             const lastDate = new Date(parseInt(year), parseInt(month), 0).getDate();
             const lastDay = `${year}-${month}-${lastDate < 10 ? '0'+lastDate : lastDate}`;
             let startStr = firstDay, endStr = lastDay;
             if (startStr < minDateStr) startStr = minDateStr;
-            startInput.value = startStr; endInput.value = endStr;
+            // 结束日期不限制超出数据范围（以便查看未来月份的目标）
+            startInput.value = startStr;
+            endInput.value = endStr;
             refreshAll();
-            document.body.removeChild(monthPicker);
-        });
+        }
+        document.body.removeChild(monthInput);
+        document.body.removeChild(overlay);
     });
+
+    monthInput.addEventListener('blur', () => {
+        if (document.body.contains(monthInput)) {
+            document.body.removeChild(monthInput);
+        }
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+    });
+});
     
     // 按天按钮：弹出原生日期选择器，选择任意日期后自动刷新（解决了最新日期不触发的问题）
     btnDay.addEventListener('click', () => {
-        // 创建一个临时的日期输入框
-        const tempDateInput = document.createElement('input');
-        tempDateInput.type = 'date';
-        tempDateInput.style.position = 'absolute';
-        tempDateInput.style.opacity = '0';
-        tempDateInput.style.pointerEvents = 'none';
-        // 关键：将 value 设为空字符串，保证用户选择任何日期（包括最新日期）都会触发 change 事件
-        tempDateInput.value = '';
-        document.body.appendChild(tempDateInput);
-        
-        // 弹出原生日期选择器
-        if (tempDateInput.showPicker) {
-            tempDateInput.showPicker();
-        } else {
-            tempDateInput.click();
-            tempDateInput.focus();
+    // 创建可见的日期选择器（浮层）
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.left = '0';
+    overlay.style.top = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.background = 'rgba(0,0,0,0.3)';
+    overlay.style.backdropFilter = 'blur(4px)';
+    overlay.style.zIndex = '9998';
+    document.body.appendChild(overlay);
+
+    const tempInput = document.createElement('input');
+    tempInput.type = 'date';
+    tempInput.style.position = 'fixed';
+    tempInput.style.left = '10%';
+    tempInput.style.top = '35%';
+    tempInput.style.width = '80%';
+    tempInput.style.padding = '18px';
+    tempInput.style.fontSize = '18px';
+    tempInput.style.border = '2px solid #2c8c8c';
+    tempInput.style.borderRadius = '16px';
+    tempInput.style.background = '#ffffff';
+    tempInput.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
+    tempInput.style.zIndex = '9999';
+    tempInput.style.color = '#1a3c3c';
+    tempInput.value = defaultDayStr;
+    document.body.appendChild(tempInput);
+
+    // 自动弹出（移动端兼容）
+    tempInput.focus();
+    if (tempInput.showPicker) {
+        tempInput.showPicker();
+    } else {
+        tempInput.click();
+    }
+
+    // 选择日期后更新
+    tempInput.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val) {
+            let startStr = val, endStr = val;
+            if (startStr < minDateStr) startStr = minDateStr;
+            if (endStr > maxDateStr) endStr = maxDateStr;
+            startInput.value = startStr;
+            endInput.value = endStr;
+            refreshAll();
         }
-        
-        // 监听 change 事件，用户选择日期后自动更新并刷新
-        tempDateInput.addEventListener('change', (e) => {
-            const selectedDate = e.target.value;
-            if (selectedDate) {
-                let startStr = selectedDate, endStr = selectedDate;
-                if (startStr < minDateStr) startStr = minDateStr;
-                if (endStr > maxDateStr) endStr = maxDateStr;
-                startInput.value = startStr;
-                endInput.value = endStr;
-                refreshAll();
-            }
-            // 移除临时元素
-            if (document.body.contains(tempDateInput)) {
-                document.body.removeChild(tempDateInput);
-            }
-        });
-        
-        // 如果用户点击取消（没有选择日期），也要移除临时元素，避免残留
-        tempDateInput.addEventListener('blur', () => {
-            if (document.body.contains(tempDateInput)) {
-                document.body.removeChild(tempDateInput);
-            }
-        });
+        // 移除浮层和输入框
+        document.body.removeChild(tempInput);
+        document.body.removeChild(overlay);
     });
+
+    // 点击空白区域关闭（失焦时关闭）
+    tempInput.addEventListener('blur', () => {
+        if (document.body.contains(tempInput)) {
+            document.body.removeChild(tempInput);
+        }
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+    });
+});
     
     // 初始化
     window.addEventListener('load', () => {
