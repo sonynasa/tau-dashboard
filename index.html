@@ -601,28 +601,69 @@ function renderChart1(filtered) {
     
     // 按天按钮：弹出原生日期选择器，选择任意日期后自动刷新（解决了最新日期不触发的问题）
     btnDay.addEventListener('click', () => {
-    // 设置默认日期
-    let defaultDate = defaultDayStr;
-    if (defaultDate < minDateStr) defaultDate = minDateStr;
-    if (defaultDate > maxDateStr) defaultDate = maxDateStr;
-    endInput.value = defaultDate;
-    // 触发结束日期输入框的选择器（该输入框在移动端本来就能正常工作）
-    if (endInput.showPicker) {
-        endInput.showPicker();
+    // 创建遮罩
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.left = '0';
+    overlay.style.top = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.background = 'rgba(0,0,0,0.3)';
+    overlay.style.backdropFilter = 'blur(4px)';
+    overlay.style.zIndex = '9998';
+    document.body.appendChild(overlay);
+
+    // 创建可见的日期输入框
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.style.position = 'fixed';
+    dateInput.style.left = '10%';
+    dateInput.style.top = '35%';
+    dateInput.style.width = '80%';
+    dateInput.style.padding = '18px';
+    dateInput.style.fontSize = '18px';
+    dateInput.style.border = '2px solid #2c8c8c';
+    dateInput.style.borderRadius = '16px';
+    dateInput.style.background = '#ffffff';
+    dateInput.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
+    dateInput.style.zIndex = '9999';
+    dateInput.style.color = '#1a3c3c';
+    // 默认显示数据最大日期（但用户可修改）
+    dateInput.value = defaultDayStr;
+    document.body.appendChild(dateInput);
+
+    // 聚焦并尝试弹出选择器
+    dateInput.focus();
+    if (dateInput.showPicker) {
+        dateInput.showPicker();
     } else {
-        endInput.click();
+        dateInput.click();
     }
-    // 监听结束日期变化，同步起始日期并刷新
-    const onEndChange = () => {
-        let selected = endInput.value;
-        if (selected) {
-            startInput.value = selected;
+
+    // 选择日期后更新
+    dateInput.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val) {
+            let startStr = val, endStr = val;
+            if (startStr < minDateStr) startStr = minDateStr;
+            if (endStr > maxDateStr) endStr = maxDateStr;
+            startInput.value = startStr;
+            endInput.value = endStr;
             refreshAll();
         }
-        // 移除监听，避免重复
-        endInput.removeEventListener('change', onEndChange);
-    };
-    endInput.addEventListener('change', onEndChange);
+        document.body.removeChild(dateInput);
+        document.body.removeChild(overlay);
+    });
+
+    // 点击遮罩或失焦时关闭（不更新数据）
+    dateInput.addEventListener('blur', () => {
+        if (document.body.contains(dateInput)) {
+            document.body.removeChild(dateInput);
+        }
+        if (document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+    });
 });
     
     // 初始化
