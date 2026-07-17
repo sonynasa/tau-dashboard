@@ -15,6 +15,7 @@
             color: #1a3c3c;
             position: relative;
             min-height: 100vh;
+            font-size: 20px;   /* 新增：整体放大字体 */
         }
         .bg-dots {
             position: fixed;
@@ -73,7 +74,7 @@
             color: #2c6e6e;
             margin-bottom: 32px;
             font-size: 1.2rem;
-            font-weight: 400;// 小标题字号
+            font-weight: 400;
         }
         .date-panel {
             display: flex;
@@ -131,6 +132,34 @@
             gap: 8px;
             margin-left: 5px;
         }
+        .summary-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto 30px auto;
+        }
+        .summary-card {
+            background: rgba(230, 247, 247, 0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 20px;
+            border: 1px solid rgba(191, 237, 237, 0.8);
+            padding: 16px 12px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+        .summary-label {
+            font-size: 1.2rem;     /* 新增：放大数字卡片中文字体 */
+            color: #2c6e6e;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+        .summary-value {
+            font-size: 2.4rem;     /* 新增：放大数字卡片数字字体 */
+            font-weight: 600;
+            color: #1a5c5c;
+            letter-spacing: -0.5px;
+        }
         .grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -184,6 +213,16 @@
             .full-width { grid-column: span 1; }
             .card { height: auto; min-height: 450px; }
         }
+        @media (max-width: 600px) {
+            .summary-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                max-width: 100%;
+            }
+            .summary-value {
+                font-size: 1.3rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -202,6 +241,22 @@
             <button id="btn7days">近7天</button>
             <button id="btn30days">近30天</button>
             <button id="btnMonth">按月</button>
+        </div>
+    </div>
+
+    <!-- 摘要卡片行 -->
+    <div class="summary-row">
+        <div class="summary-card">
+            <div class="summary-label">总销售额</div>
+            <div class="summary-value" id="totalSales">—</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">总投流费用</div>
+            <div class="summary-value" id="totalCost">—</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">总投产比 (ROI)</div>
+            <div class="summary-value" id="totalRoi">—</div>
         </div>
     </div>
 
@@ -276,7 +331,7 @@
         return { totalSales, totalCost, channelSales, channelCost };
     }
     
-    // 配色方案：基于 RGB(191,237,237) 展开
+    // 配色方案
     const colorPalette = {
         primary: '#3c9e9e',
         secondary: '#f39c12',
@@ -299,27 +354,26 @@
         return layout;
     }
     
-function renderChart1(filtered) {
-    const agg = aggregate(filtered);
-    const items = Object.entries(agg.channelSales).filter(([_,v]) => v > 0);
-    const labels = items.map(v => v[0]);
-    const values = items.map(v => v[1]);
-    if(labels.length === 0) {
-        document.getElementById('chart1').innerHTML = '<div style="color:gray; text-align:center;">无数据</div>';
-        return;
+    function renderChart1(filtered) {
+        const agg = aggregate(filtered);
+        const items = Object.entries(agg.channelSales).filter(([_,v]) => v > 0);
+        const labels = items.map(v => v[0]);
+        const values = items.map(v => v[1]);
+        if(labels.length === 0) {
+            document.getElementById('chart1').innerHTML = '<div style="color:gray; text-align:center;">无数据</div>';
+            return;
+        }
+        const trace = {
+            labels: labels, values: values, type: 'pie', hole: 0.45,
+            textinfo: 'label+percent', textposition: 'outside',
+            marker: { colors: colorPalette.pieColors },
+            hoverinfo: 'label+percent+value',
+            rotation: 100
+        };
+        let layout = { margin: { t: 20, b: 20, l: 20, r: 20 }, showlegend: true, legend: { orientation: 'h', y: -0.1 } };
+        layout = applyCommonLayout(layout);
+        Plotly.newPlot('chart1', [trace], layout, { responsive: true });
     }
-    const trace = {
-        labels: labels, values: values, type: 'pie', hole: 0.45,
-        textinfo: 'label+percent', textposition: 'outside',
-        marker: { colors: colorPalette.pieColors },
-        hoverinfo: 'label+percent+value',
-        rotation: 100   // 顺时针旋转120度
-    };
-    let layout = { margin: { t: 20, b: 20, l: 20, r: 20 }, showlegend: true, legend: { orientation: 'h', y: -0.1 } };
-    layout = applyCommonLayout(layout);
-    Plotly.newPlot('chart1', [trace], layout, { responsive: true });
-}
-
     
     function renderChart2(filtered) {
         const agg = aggregate(filtered);
@@ -490,6 +544,24 @@ function renderChart1(filtered) {
         Plotly.newPlot('chart7', [trace], layout, { responsive: true });
     }
     
+    // 新增：更新摘要卡片
+    function updateSummary(filtered) {
+    let totalSales = 0;
+    let totalCost = 0;
+    filtered.forEach(day => {
+        totalSales += day.total_sales;
+        totalCost += day.total_cost;
+    });
+    let roi = totalCost === 0 ? 0 : totalSales / totalCost;
+    const formatNum = (num) => {
+        if (num === 0) return '0';
+        return Math.round(num).toLocaleString();  // 原生千分位格式化
+    };
+    document.getElementById('totalSales').textContent = '¥' + formatNum(totalSales);
+    document.getElementById('totalCost').textContent = '¥' + formatNum(totalCost);
+    document.getElementById('totalRoi').textContent = roi.toFixed(2);
+}
+    
     function refreshAll() {
         let start = startInput.value, end = endInput.value;
         if(!start) start = defaultStartStr;
@@ -497,6 +569,8 @@ function renderChart1(filtered) {
         if(start > end) { alert("起始日期不能大于结束日期！"); return; }
         const filtered = filterByDate(start, end);
         if(filtered.length === 0) { alert("所选范围无数据"); return; }
+        // 更新摘要卡片
+        updateSummary(filtered);
         renderChart1(filtered);
         renderChart2(filtered);
         renderChart3(filtered);
@@ -532,148 +606,134 @@ function renderChart1(filtered) {
         refreshAll();
     });
     btnMonth.addEventListener('click', () => {
-    // 创建半透明遮罩
-    const overlay = document.createElement('div');
-    overlay.style.position = 'fixed';
-    overlay.style.left = '0';
-    overlay.style.top = '0';
-    overlay.style.width = '100%';
-    overlay.style.height = '100%';
-    overlay.style.background = 'rgba(0,0,0,0.3)';
-    overlay.style.backdropFilter = 'blur(4px)';
-    overlay.style.zIndex = '9998';
-    document.body.appendChild(overlay);
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.left = '0';
+        overlay.style.top = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.background = 'rgba(0,0,0,0.3)';
+        overlay.style.backdropFilter = 'blur(4px)';
+        overlay.style.zIndex = '9998';
+        document.body.appendChild(overlay);
 
-    // 创建可见的月份输入框
-    const monthInput = document.createElement('input');
-    monthInput.type = 'month';
-    monthInput.style.position = 'fixed';
-    monthInput.style.left = '10%';
-    monthInput.style.top = '35%';
-    monthInput.style.width = '80%';
-    monthInput.style.padding = '18px';
-    monthInput.style.fontSize = '18px';
-    monthInput.style.border = '2px solid #2c8c8c';
-    monthInput.style.borderRadius = '16px';
-    monthInput.style.background = '#ffffff';
-    monthInput.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
-    monthInput.style.zIndex = '9999';
-    monthInput.style.color = '#1a3c3c';
-    monthInput.value = "2026-07"; // 该占位符会被 Python 替换为当前年月
-    document.body.appendChild(monthInput);
+        const monthInput = document.createElement('input');
+        monthInput.type = 'month';
+        monthInput.style.position = 'fixed';
+        monthInput.style.left = '10%';
+        monthInput.style.top = '35%';
+        monthInput.style.width = '80%';
+        monthInput.style.padding = '18px';
+        monthInput.style.fontSize = '18px';
+        monthInput.style.border = '2px solid #2c8c8c';
+        monthInput.style.borderRadius = '16px';
+        monthInput.style.background = '#ffffff';
+        monthInput.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
+        monthInput.style.zIndex = '9999';
+        monthInput.style.color = '#1a3c3c';
+        monthInput.value = "2026-07";
+        document.body.appendChild(monthInput);
 
-    // 聚焦并尝试弹出选择器
-    monthInput.focus();
-    if (monthInput.showPicker) {
-        monthInput.showPicker();
-    } else {
-        monthInput.click();
-    }
-
-    // 选择月份后更新
-    monthInput.addEventListener('change', (e) => {
-        const val = e.target.value;
-        if (val) {
-            const [year, month] = val.split('-');
-            const firstDay = `${year}-${month}-01`;
-            const lastDate = new Date(parseInt(year), parseInt(month), 0).getDate();
-            const lastDay = `${year}-${month}-${lastDate < 10 ? '0'+lastDate : lastDate}`;
-            let startStr = firstDay, endStr = lastDay;
-            if (startStr < minDateStr) startStr = minDateStr;
-            startInput.value = startStr;
-            endInput.value = endStr;
-            refreshAll();
+        monthInput.focus();
+        if (monthInput.showPicker) {
+            monthInput.showPicker();
+        } else {
+            monthInput.click();
         }
-        document.body.removeChild(monthInput);
-        document.body.removeChild(overlay);
-    });
 
-    // 点击遮罩或失焦时关闭
-    monthInput.addEventListener('blur', () => {
-        if (document.body.contains(monthInput)) {
+        monthInput.addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (val) {
+                const [year, month] = val.split('-');
+                const firstDay = `${year}-${month}-01`;
+                const lastDate = new Date(parseInt(year), parseInt(month), 0).getDate();
+                const lastDay = `${year}-${month}-${lastDate < 10 ? '0'+lastDate : lastDate}`;
+                let startStr = firstDay, endStr = lastDay;
+                if (startStr < minDateStr) startStr = minDateStr;
+                startInput.value = startStr;
+                endInput.value = endStr;
+                refreshAll();
+            }
             document.body.removeChild(monthInput);
-        }
-        if (document.body.contains(overlay)) {
             document.body.removeChild(overlay);
-        }
+        });
+
+        monthInput.addEventListener('blur', () => {
+            if (document.body.contains(monthInput)) {
+                document.body.removeChild(monthInput);
+            }
+            if (document.body.contains(overlay)) {
+                document.body.removeChild(overlay);
+            }
+        });
     });
-});
     
-    // 按天按钮：弹出原生日期选择器，选择任意日期后自动刷新（解决了最新日期不触发的问题）
     btnDay.addEventListener('click', () => {
-    // 创建遮罩
-    const overlay = document.createElement('div');
-    overlay.style.position = 'fixed';
-    overlay.style.left = '0';
-    overlay.style.top = '0';
-    overlay.style.width = '100%';
-    overlay.style.height = '100%';
-    overlay.style.background = 'rgba(0,0,0,0.3)';
-    overlay.style.backdropFilter = 'blur(4px)';
-    overlay.style.zIndex = '9998';
-    document.body.appendChild(overlay);
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.left = '0';
+        overlay.style.top = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.background = 'rgba(0,0,0,0.3)';
+        overlay.style.backdropFilter = 'blur(4px)';
+        overlay.style.zIndex = '9998';
+        document.body.appendChild(overlay);
 
-    // 创建可见的日期输入框
-    const dateInput = document.createElement('input');
-    dateInput.type = 'date';
-    dateInput.style.position = 'fixed';
-    dateInput.style.left = '10%';
-    dateInput.style.top = '35%';
-    dateInput.style.width = '80%';
-    dateInput.style.padding = '18px';
-    dateInput.style.fontSize = '18px';
-    dateInput.style.border = '2px solid #2c8c8c';
-    dateInput.style.borderRadius = '16px';
-    dateInput.style.background = '#ffffff';
-    dateInput.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
-    dateInput.style.zIndex = '9999';
-    dateInput.style.color = '#1a3c3c';
-    // 默认显示数据最大日期（但用户可修改）
-    dateInput.value = defaultDayStr;
-    document.body.appendChild(dateInput);
+        const dateInput = document.createElement('input');
+        dateInput.type = 'date';
+        dateInput.style.position = 'fixed';
+        dateInput.style.left = '10%';
+        dateInput.style.top = '35%';
+        dateInput.style.width = '80%';
+        dateInput.style.padding = '18px';
+        dateInput.style.fontSize = '18px';
+        dateInput.style.border = '2px solid #2c8c8c';
+        dateInput.style.borderRadius = '16px';
+        dateInput.style.background = '#ffffff';
+        dateInput.style.boxShadow = '0 12px 40px rgba(0,0,0,0.25)';
+        dateInput.style.zIndex = '9999';
+        dateInput.style.color = '#1a3c3c';
+        dateInput.value = defaultDayStr;
+        document.body.appendChild(dateInput);
 
-    // 聚焦并尝试弹出选择器
-    dateInput.focus();
-    if (dateInput.showPicker) {
-        dateInput.showPicker();
-    } else {
-        dateInput.click();
-    }
-
-    // 选择日期后更新
-    dateInput.addEventListener('change', (e) => {
-        const val = e.target.value;
-        if (val) {
-            let startStr = val, endStr = val;
-            if (startStr < minDateStr) startStr = minDateStr;
-            if (endStr > maxDateStr) endStr = maxDateStr;
-            startInput.value = startStr;
-            endInput.value = endStr;
-            refreshAll();
+        dateInput.focus();
+        if (dateInput.showPicker) {
+            dateInput.showPicker();
+        } else {
+            dateInput.click();
         }
-        document.body.removeChild(dateInput);
-        document.body.removeChild(overlay);
-    });
 
-    // 点击遮罩或失焦时关闭（不更新数据）
-    dateInput.addEventListener('blur', () => {
-        if (document.body.contains(dateInput)) {
+        dateInput.addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (val) {
+                let startStr = val, endStr = val;
+                if (startStr < minDateStr) startStr = minDateStr;
+                if (endStr > maxDateStr) endStr = maxDateStr;
+                startInput.value = startStr;
+                endInput.value = endStr;
+                refreshAll();
+            }
             document.body.removeChild(dateInput);
-        }
-        if (document.body.contains(overlay)) {
             document.body.removeChild(overlay);
-        }
+        });
+
+        dateInput.addEventListener('blur', () => {
+            if (document.body.contains(dateInput)) {
+                document.body.removeChild(dateInput);
+            }
+            if (document.body.contains(overlay)) {
+                document.body.removeChild(overlay);
+            }
+        });
     });
-});
     
-    // 初始化
     window.addEventListener('load', () => {
         startInput.value = defaultStartStr;
         endInput.value = maxDateStr;
         refreshAll();
     });
     
-    // 运动背景图标
     function initSportsBg() {
         const icons = ['fa-running', 'fa-swimmer', 'fa-biking', 'fa-skiing', 'fa-person-walking', 'fa-person-biking', 'fa-water', 'fa-snowboarding'];
         const container = document.getElementById('sportsBg');
