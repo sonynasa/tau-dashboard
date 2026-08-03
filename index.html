@@ -15,7 +15,7 @@
             color: #1a3c3c;
             position: relative;
             min-height: 100vh;
-            font-size: 20px;   /* 新增：整体放大字体 */
+            font-size: 20px;
         }
         .bg-dots {
             position: fixed;
@@ -149,13 +149,13 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.03);
         }
         .summary-label {
-            font-size: 1.2rem;     /* 新增：放大数字卡片中文字体 */
+            font-size: 1.2rem;
             color: #2c6e6e;
             font-weight: 500;
             margin-bottom: 6px;
         }
         .summary-value {
-            font-size: 2.4rem;     /* 新增：放大数字卡片数字字体 */
+            font-size: 2.4rem;
             font-weight: 600;
             color: #1a5c5c;
             letter-spacing: -0.5px;
@@ -276,6 +276,10 @@
         <div class="card"><div class="chart-title">总投产比走势 (每日整体ROI)</div><div id="chart5" class="plot-area"></div></div>
         <div class="card"><div class="chart-title">全年总目标完成率 (码表)</div><div id="chart7" class="plot-area"></div></div>
     </div>
+    <!-- 第四行：天气走势图（全宽） -->
+    <div class="grid" style="margin-top: 24px;">
+        <div class="card full-width"><div class="chart-title">🌦️ 全国平均气温走势</div><div id="chart8" class="plot-area"></div></div>
+    </div>
     <footer>数据范围 2026-01-01 至 2026-07-31 · 日期变更自动刷新图表</footer>
 </div>
 
@@ -288,6 +292,7 @@
     const maxDateStr = "2026-07-31";
     const defaultStartStr = "2026-05-02";
     const defaultDayStr = "2026-07-31";
+    const weatherData = [{"日期": "2026-08-03", "最高温(℃)": 32.38709677419355, "最低温(℃)": 22.967741935483872}, {"日期": "2026-08-04", "最高温(℃)": 32.61290322580645, "最低温(℃)": 23.225806451612904}, {"日期": "2026-08-05", "最高温(℃)": 31.870967741935484, "最低温(℃)": 23.161290322580644}, {"日期": "2026-08-06", "最高温(℃)": 31.548387096774192, "最低温(℃)": 22.677419354838708}, {"日期": "2026-08-07", "最高温(℃)": 31.70967741935484, "最低温(℃)": 22.774193548387096}, {"日期": "2026-08-08", "最高温(℃)": 31.0, "最低温(℃)": 22.612903225806452}, {"日期": "2026-08-09", "最高温(℃)": 31.096774193548388, "最低温(℃)": 22.93548387096774}, {"日期": "2026-08-10", "最高温(℃)": 31.0, "最低温(℃)": 23.29032258064516}, {"日期": "2026-08-11", "最高温(℃)": 31.225806451612904, "最低温(℃)": 22.838709677419356}, {"日期": "2026-08-12", "最高温(℃)": 30.612903225806452, "最低温(℃)": 21.225806451612904}, {"日期": "2026-08-13", "最高温(℃)": 28.838709677419356, "最低温(℃)": 21.129032258064516}, {"日期": "2026-08-14", "最高温(℃)": 30.032258064516128, "最低温(℃)": 21.29032258064516}, {"日期": "2026-08-15", "最高温(℃)": 30.387096774193548, "最低温(℃)": 21.870967741935484}, {"日期": "2026-08-16", "最高温(℃)": 30.35483870967742, "最低温(℃)": 22.161290322580644}, {"日期": "2026-08-17", "最高温(℃)": 30.903225806451612, "最低温(℃)": 23.193548387096776}];   // 天气数据
     
     const startInput = document.getElementById('startDate');
     const endInput = document.getElementById('endDate');
@@ -544,23 +549,70 @@
         Plotly.newPlot('chart7', [trace], layout, { responsive: true });
     }
     
-    // 新增：更新摘要卡片
+    // 新增：天气趋势图
+    function renderChart8() {
+        const container = document.getElementById('chart8');
+        if (!weatherData || weatherData.length === 0) {
+            container.innerHTML = '<div style="color:gray; text-align:center; padding-top: 120px;">暂无天气数据</div>';
+            return;
+        }
+        const dates = weatherData.map(d => d['日期']);
+        const highTemps = weatherData.map(d => parseFloat(d['最高温(℃)'].toFixed(1)));
+        const lowTemps = weatherData.map(d => parseFloat(d['最低温(℃)'].toFixed(1)));
+        
+        const traceHigh = {
+            x: dates,
+            y: highTemps,
+            type: 'scatter',
+            mode: 'lines+markers+text',
+            name: '最高平均气温',
+            line: { color: 'red', width: 2.5 },
+            marker: { color: 'red', size: 6 },
+            text: highTemps.map(v => v.toFixed(1) + '°C'),
+            textposition: 'top center',
+            textfont: { size: 10, color: 'darkred' },
+            hovertemplate: '%{x}<br>最高温: %{y:.1f}°C<extra></extra>'
+        };
+        const traceLow = {
+            x: dates,
+            y: lowTemps,
+            type: 'scatter',
+            mode: 'lines+markers+text',
+            name: '最低平均气温',
+            line: { color: 'blue', width: 2.5 },
+            marker: { color: 'blue', size: 6 },
+            text: lowTemps.map(v => v.toFixed(1) + '°C'),
+            textposition: 'bottom center',
+            textfont: { size: 10, color: 'darkblue' },
+            hovertemplate: '%{x}<br>最低温: %{y:.1f}°C<extra></extra>'
+        };
+        let layout = {
+            title: '',
+            yaxis: { title: '温度 (°C)', gridcolor: colorPalette.gridColor },
+            xaxis: { title: '日期', tickangle: -30 },
+            legend: { orientation: 'h', y: -0.15 }
+        };
+        layout = applyCommonLayout(layout);
+        Plotly.newPlot('chart8', [traceHigh, traceLow], layout, { responsive: true });
+    }
+    
+    // 更新摘要卡片
     function updateSummary(filtered) {
-    let totalSales = 0;
-    let totalCost = 0;
-    filtered.forEach(day => {
-        totalSales += day.total_sales;
-        totalCost += day.total_cost;
-    });
-    let roi = totalCost === 0 ? 0 : totalSales / totalCost;
-    const formatNum = (num) => {
-        if (num === 0) return '0';
-        return Math.round(num).toLocaleString();  // 原生千分位格式化
-    };
-    document.getElementById('totalSales').textContent = '¥' + formatNum(totalSales);
-    document.getElementById('totalCost').textContent = '¥' + formatNum(totalCost);
-    document.getElementById('totalRoi').textContent = roi.toFixed(2);
-}
+        let totalSales = 0;
+        let totalCost = 0;
+        filtered.forEach(day => {
+            totalSales += day.total_sales;
+            totalCost += day.total_cost;
+        });
+        let roi = totalCost === 0 ? 0 : totalSales / totalCost;
+        const formatNum = (num) => {
+            if (num === 0) return '0';
+            return Math.round(num).toLocaleString();
+        };
+        document.getElementById('totalSales').textContent = '¥' + formatNum(totalSales);
+        document.getElementById('totalCost').textContent = '¥' + formatNum(totalCost);
+        document.getElementById('totalRoi').textContent = roi.toFixed(2);
+    }
     
     function refreshAll() {
         let start = startInput.value, end = endInput.value;
@@ -578,6 +630,8 @@
         renderChart5(filtered);
         renderChart6(start, end);
         renderChart7(end);
+        // 天气图独立，不随日期变化
+        renderChart8();
     }
     
     // 自动刷新事件
