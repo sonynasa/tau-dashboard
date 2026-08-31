@@ -4,3 +4,9 @@ start_all.bat
 *.log
 __pycache__/
 .git/
+build/
+dist/
+_build/
+*.spec
+TAU_Publish.exe
+publish.py
